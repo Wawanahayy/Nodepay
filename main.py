@@ -170,7 +170,7 @@ class TaskManager:
 def load_accounts() -> List[Account]:
     """从指定路径加载账户信息"""
     accounts = []
-    accounts_file = "Nodepay/data/accounts.txt"
+    accounts_file = "/root/Nodepay/data/accounts.txt"
     
     try:
         with open(accounts_file, "r", encoding="utf-8") as f:
