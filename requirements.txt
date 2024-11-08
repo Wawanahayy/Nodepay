@@ -1,0 +1,16 @@
+PyJWT~=2.9.0
+loguru~=0.7.2
+pyuseragents~=1.0.5
+capmonster_python==3.2.0
+Faker~=30.6.0
+tenacity~=9.0.0
+art~=6.3
+termcolor~=2.5.0
+flet~=0.24.1
+customtkinter~=5.2.2
+pillow~=11.0.0
+curl_cffi~=0.7.3
+random-username~=1.0.2
+better-proxy==1.2.0
+anticaptchaofficial
+2captcha-python
