@@ -168,12 +168,46 @@ class TaskManager:
             await asyncio.sleep(10)
 
 def load_accounts() -> List[Account]:
-    # 这里实现从配置文件加载账号
-    # 示例账号
-    return [
-        Account("test1@example.com", "password1"),
-        Account("test2@example.com", "password2"),
-    ]
+    """从指定路径加载账户信息"""
+    accounts = []
+    accounts_file = "Nodepay/data/accounts.txt"
+    
+    try:
+        with open(accounts_file, "r", encoding="utf-8") as f:
+            for line in f:
+                # 跳过空行和注释行
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                    
+                try:
+                    # 假设格式为: email|password 或 email:password
+                    if "|" in line:
+                        email, password = line.split("|", 1)
+                    else:
+                        email, password = line.split(":", 1)
+                        
+                    email = email.strip()
+                    password = password.strip()
+                    
+                    if email and password:  # 确保两个字段都不为空
+                        accounts.append(Account(email, password))
+                    else:
+                        logger.warning(f"Skipping invalid account line: {line}")
+                        
+                except ValueError:
+                    logger.error(f"Invalid format in line: {line}")
+                    continue
+                    
+        logger.info(f"Successfully loaded {len(accounts)} accounts")
+        return accounts
+        
+    except FileNotFoundError:
+        logger.error(f"Accounts file not found: {accounts_file}")
+        return []
+    except Exception as e:
+        logger.error(f"Error loading accounts: {str(e)}")
+        return []
 
 async def main():
     if sys.platform == "win32":
@@ -181,6 +215,9 @@ async def main():
 
     # 设置日志
     logger.add("bot.log", rotation="1 day", retention="7 days", level="INFO")
+    
+    # 确保账户文件目录存在
+    os.makedirs("Nodepay/data", exist_ok=True)
     
     config = Config()
     accounts = load_accounts()
