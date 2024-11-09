@@ -1,21 +1,10 @@
-# Nodepay.ai
-![Nodepay.ai](image.png)
-Nodepay.ai Bot auto ping using multyple proxy
-
-Register to Nodepay.ai : [https://app.nodepay.ai/register](https://app.nodepay.ai/register?ref=Od15EPpf6UBd5qR)
-
-# Features
-This script is intended for running on a server using multyple proxy.
 
 # Steps to Run the Code
 ```bash
 git clone https://github.com/Zlkcyber/nodepay.git
 cd nodepay
 ```
-**Update proxy**
-```bash
-wget https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt && mv all.txt proxy.txt
-```
+
 ## 1. Obtain Required Information
 
 1. Open the link and log in to [https://app.nodepay.ai/](https://app.nodepay.ai/register?ref=Od15EPpf6UBd5qR)
