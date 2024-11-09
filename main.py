@@ -7,13 +7,19 @@ from loguru import logger
 from colorama import Fore, Style, init
 import sys
 import os
-from utils.banner import banner
+
+# Banner (你可以自定义或删除)
+banner = """
+NodePay Network Connection
+Version: 2.2.7
+"""
 
 # Initialize colorama and configure loguru
 init(autoreset=True)
 logger.remove()
 logger.add(sys.stdout, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>", colorize=True)
 
+# Constants
 PING_INTERVAL = 180
 RETRIES = 120
 TOKEN_FILE = 'np_tokens.txt'
@@ -29,6 +35,7 @@ CONNECTION_STATES = {
     "NONE_CONNECTION": 3
 }
 
+# Global variables
 status_connect = CONNECTION_STATES["NONE_CONNECTION"]
 proxy_auth_status = {}
 browser_id = None
@@ -43,7 +50,6 @@ def valid_resp(resp):
         raise ValueError("Invalid response")
     return resp
 
-# Save session information to JSON file
 def save_session_info(proxy, data):
     session_data = load_all_sessions()
     session_data[proxy] = {
@@ -54,24 +60,76 @@ def save_session_info(proxy, data):
         json.dump(session_data, file)
     logger.info(f"Session saved for proxy {proxy}")
 
-# Load all sessions from JSON file
 def load_all_sessions():
     if os.path.exists(SESSION_FILE):
         with open(SESSION_FILE, 'r') as file:
             return json.load(file)
     return {}
 
-# Load a specific session for a given proxy
 def load_session_info(proxy):
     session_data = load_all_sessions()
     return session_data.get(proxy, {})
+
+def load_proxies_from_file(filename="proxy.txt"):
+    """Load proxies from proxy.txt file"""
+    try:
+        with open(filename, 'r') as file:
+            proxies = [line.strip() for line in file if line.strip()]
+        logger.info(f"Successfully loaded {len(proxies)} proxies from {filename}")
+        return proxies
+    except FileNotFoundError:
+        logger.error(f"Proxy file {filename} not found")
+        return []
+    except Exception as e:
+        logger.error(f"Failed to load proxies from file {filename}: {e}")
+        return []
+
+def load_tokens_from_file(filename):
+    try:
+        with open(filename, 'r') as file:
+            tokens = file.read().splitlines()
+        return tokens
+    except Exception as e:
+        logger.error(f"Failed to load tokens: {e}")
+        return []
+
+async def call_api(url, data, proxy, token, max_retries=3):
+    headers = {
+        "Authorization": f"Bearer {token}",
+        'accept': '*/*',
+        'content-type': 'application/json',
+        'user-agent': 'Mozilla/5.0',
+    }
+    
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=True)) as session:
+        try:
+            async with session.options(url, headers=headers, proxy=proxy, timeout=10) as options_response:
+                if options_response.status not in (200, 204):
+                    logger.warning(f"Request to {url} failed with status {options_response.status} with proxy {proxy}")
+                    return None
+                else:
+                    logger.debug(f"Request successful for {url} with proxy {proxy}")
+        except Exception as e:
+            return None
+
+        for attempt in range(max_retries):
+            try:
+                async with session.post(url, json=data, headers=headers, proxy=proxy, timeout=10) as response:
+                    response.raise_for_status()
+                    resp_json = await response.json()
+                    return valid_resp(resp_json)
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1} failed for proxy {proxy}: {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                return None
 
 async def render_profile_info(proxy, token):
     global browser_id, account_info
 
     try:
         if not proxy_auth_status.get(proxy):
-            
             saved_session = load_session_info(proxy)
             if saved_session:
                 browser_id = saved_session["browser_id"]
@@ -90,7 +148,6 @@ async def render_profile_info(proxy, token):
                         logger.info(f"Proxy {proxy} authenticated successfully.")
                     else:
                         handle_logout(proxy)
-                        
                 else:
                     return
 
@@ -98,54 +155,6 @@ async def render_profile_info(proxy, token):
 
     except Exception as e:
         logger.error(f"Exception in render_profile_info for proxy {proxy}: {e}")
-
-async def call_api(url, data, proxy, token, max_retries=3):
-    headers = {
-        "Authorization": f"Bearer {token}",
-        'accept': '*/*',
-        'content-type': 'application/json',
-        'user-agent': 'Mozilla/5.0',
-    }
-
-    
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=True)) as session:
-        
-        try:
-            async with session.options(url, headers=headers, proxy=proxy, timeout=10) as options_response:
-                if options_response.status not in (200, 204):
-                    logger.warning(f"request to {url} failed with status {options_response.status} with proxy {proxy}")
-                    return None
-                else:
-                    logger.debug(f"request successful for {url} with proxy {proxy}")
-        except Exception as e:
-            #logger.error(f"Exception during request to {url} with proxy {proxy}: {e}")
-            return None
-
-        # Send the POST request if OPTIONS was successful
-        for attempt in range(max_retries):
-            try:
-                logger.debug(f"Attempt {attempt + 1} for POST request to {url} with proxy {proxy}")
-                async with session.post(url, json=data, headers=headers, proxy=proxy, timeout=10) as response:
-                    response.raise_for_status()
-                    resp_json = await response.json()
-                    logger.debug(f"POST request to {url} succeeded on attempt {attempt + 1} with proxy {proxy}")
-                    return valid_resp(resp_json)
-            except aiohttp.ClientResponseError as e:
-                if e.status == 403:
-                    logger.warning(f"API call to {url} failed with status 403 on proxy {proxy}")
-                    return None
-                else:
-                    logger.error(f"ClientResponseError {e.status} on attempt {attempt + 1} for proxy {proxy}: {e}")
-            except aiohttp.ClientConnectionError as e:
-                logger.warning(f"Connection error on attempt {attempt + 1} for proxy {proxy}: {e}")
-            except Exception as e:
-                logger.error(f"Exception during API call attempt {attempt + 1} for proxy {proxy}: {e}")
-            await asyncio.sleep(2 ** attempt)
-            logger.debug(f"Retrying attempt {attempt + 1} after backoff for proxy {proxy}")
-
-    logger.error(f"Failed API call to {url} after {max_retries} attempts with proxy {proxy}")
-    return None
-
 
 async def start_ping(proxy, token):
     try:
@@ -193,112 +202,52 @@ def handle_ping_fail(proxy, response):
         status_connect = CONNECTION_STATES["DISCONNECTED"]
     else:
         status_connect = CONNECTION_STATES["DISCONNECTED"]
-        
 
 def handle_logout(proxy):
     global status_connect, account_info
     status_connect = CONNECTION_STATES["NONE_CONNECTION"]
     account_info = {}
-    save_status(proxy, None)
+    proxy_auth_status[proxy] = False
     logger.info(f"Logged out and cleared session info for proxy {proxy}")
-
-
-def save_status(proxy, status):
-    pass
-
-def load_tokens_from_file(filename):
-    try:
-        with open(filename, 'r') as file:
-            tokens = file.read().splitlines()
-        return tokens
-    except Exception as e:
-        logger.error(f"Failed to load tokens: {e}")
-        raise SystemExit("Exiting due to failure in loading tokens")
-        
-        
-async def fetch_proxies(url):
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(url) as response:
-                response.raise_for_status()
-                proxy_list = await response.text()
-                proxies = proxy_list.splitlines()
-                save_proxies_to_file(proxies)  # Save proxies to file
-                return proxies
-        except Exception as e:
-            logger.error(f"Failed to fetch proxies: {e}")
-            return []
-
-def save_proxies_to_file(proxies, filename="proxies.txt"):
-    try:
-        with open(filename, 'w') as file:
-            file.write("\n".join(proxies))
-        logger.info(f"Proxies saved to {filename}")
-    except Exception as e:
-        logger.error(f"Failed to save proxies to file {filename}: {e}")
-
-def load_proxies_from_file(filename="proxies.txt"):
-    try:
-        with open(filename, 'r') as file:
-            proxies = file.read().splitlines()
-            logger.info(f"Loaded proxies from {filename}")
-            return proxies
-    except Exception as e:
-        logger.error(f"Failed to load proxies from file {filename}: {e}")
-        return []
-
-async def update_proxies_every_hour(url, proxies):
-    while True:
-        new_proxies = await fetch_proxies(url)
-        if new_proxies:
-            proxies.clear()
-            proxies.extend(new_proxies)
-            logger.info("Proxy list updated")
-        else:
-            logger.warning("Proxy update failed; keeping previous list")
-        await asyncio.sleep(3600)  # Wait for 1 hour before updating again
-
-async def main():
-    print(Fore.MAGENTA + Style.BRIGHT + banner + Style.RESET_ALL)
-    logger.info("Starting program execution")
-    await asyncio.sleep(5)
-
-    proxy_url = 'https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/all.txt'
-    
-    # Load proxies from file initially
-    all_proxies = load_proxies_from_file()
-
-    if not all_proxies:
-        # Fetch proxies from the URL if the file is empty or not found
-        all_proxies = await fetch_proxies(proxy_url)
-    
-    tokens = load_tokens_from_file(TOKEN_FILE)
-
-    # Start proxy updater task
-    asyncio.create_task(update_proxies_every_hour(proxy_url, all_proxies))
-
-    while True:
-        for token in tokens:
-            # Create a task for each proxy to run render_profile_info
-            tasks = []
-            for proxy in all_proxies:
-                tasks.append(asyncio.create_task(proxy_handler(proxy, token)))
-
-            # Wait for all render_profile_info tasks to complete
-            await asyncio.gather(*tasks)
-
-            # Short pause before re-looping for the next token
-            await asyncio.sleep(3)
-        await asyncio.sleep(10)
 
 async def proxy_handler(proxy, token):
     await render_profile_info(proxy, token)
     if proxy_auth_status.get(proxy):
         asyncio.create_task(start_ping(proxy, token))
 
+async def main():
+    print(Fore.MAGENTA + Style.BRIGHT + banner + Style.RESET_ALL)
+    logger.info("Starting program execution")
+    await asyncio.sleep(5)
+
+    # Load proxies and tokens
+    all_proxies = load_proxies_from_file("proxy.txt")
+    if not all_proxies:
+        logger.error("No proxies found in proxy.txt. Please add proxies and restart.")
+        return
+
+    tokens = load_tokens_from_file(TOKEN_FILE)
+    if not tokens:
+        logger.error("No tokens found. Please add tokens to np_tokens.txt")
+        return
+
+    logger.info(f"Loaded {len(all_proxies)} proxies and {len(tokens)} tokens")
+
+    while True:
+        for token in tokens:
+            tasks = []
+            for proxy in all_proxies:
+                formatted_proxy = f"http://{proxy}" if not proxy.startswith(('http://', 'https://')) else proxy
+                tasks.append(asyncio.create_task(proxy_handler(formatted_proxy, token)))
+
+            await asyncio.gather(*tasks)
+            await asyncio.sleep(3)
+        await asyncio.sleep(10)
 
 if __name__ == '__main__':
     try:
         asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
+    except KeyboardInterrupt:
         logger.info("Program terminated by user.")
+    except Exception as e:
+        logger.error(f"Program terminated due to error: {e}")
