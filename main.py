@@ -210,22 +210,26 @@ async def main():
     print("Welcome to the main program!")
     await asyncio.sleep(3)
 
-    # 加载tokens
     tokens = load_tokens_from_file(TOKEN_FILE)
-    # 加载proxies
-    proxies = load_proxies('proxy.txt')  # 确保你有一个proxy.txt文件
 
     while True:
+        r = requests.get("https://raw.githubusercontent.com/sdohuajia/Nodepay/refs/heads/main/all.txt", stream=True)
+        if r.status_code == 200:
+            with open('all.txt', 'wb') as f:
+                for chunk in r:
+                    f.write(chunk)
+            with open('all.txt', 'r') as file:
+                all_proxies = file.read().splitlines()
+                
         for token in tokens:
-            tasks = {asyncio.create_task(render_profile_info(proxy, token)): proxy 
-                    for proxy in proxies}  # 使用本地proxy列表
+            tasks = {asyncio.create_task(render_profile_info(proxy, token)): proxy for proxy in all_proxies}
 
-            done, pending = await asyncio.wait(tasks.keys(), 
-                                             return_when=asyncio.FIRST_COMPLETED)
+            done, pending = await asyncio.wait(tasks.keys(), return_when=asyncio.FIRST_COMPLETED)
             for task in done:
+                
                 tasks.pop(task)
 
-            for proxy in set(proxies) - set(tasks.values()):
+            for proxy in set(all_proxies) - set(tasks.values()):
                 new_task = asyncio.create_task(render_profile_info(proxy, token))
                 tasks[new_task] = proxy
 
@@ -237,4 +241,3 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("Program terminated by user.")
-
