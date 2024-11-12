@@ -7,7 +7,8 @@ from loguru import logger
 from colorama import Fore, Style, init
 import sys
 import logging
-from aiohttp_socks import ProxyConnector  # Import untuk mendukung SOCKS5
+from aiohttp_socks import Socks5Connector  # For SOCKS5 proxies
+
 logging.disable(logging.ERROR)
 from utils.banner import banner
 
@@ -23,12 +24,15 @@ logger.level("WARNING", color=f"{Fore.YELLOW}")
 logger.level("ERROR", color=f"{Fore.RED}")
 logger.level("CRITICAL", color=f"{Style.BRIGHT}{Fore.RED}")
 
+
 def show_copyright():
     print(Fore.MAGENTA + Style.BRIGHT + banner + Style.RESET_ALL)
+
 
 PING_INTERVAL = 180
 RETRIES = 120
 TOKEN_FILE = 'np_tokens.txt'
+PROXY_FILE = 'proxies.txt'  # Proxies file to load from
 
 DOMAIN_API = {
     "SESSION": "http://18.136.143.169/api/auth/session",
@@ -91,15 +95,11 @@ async def call_api(url, data, proxy, token, max_retries=3):
         "Referer": "https://app.nodepay.ai",
     }
 
-    # Deteksi jenis proxy dan buat konektor yang sesuai
+    connector = None
     if proxy.startswith("socks5://"):
-        # Untuk SOCKS5
-        connector = ProxyConnector.from_url(proxy)
-    elif proxy.startswith("http://") or proxy.startswith("https://"):
-        # Untuk HTTP dan HTTPS
-        connector = aiohttp.TCPConnector()
+        connector = Socks5Connector.from_url(proxy)
     else:
-        raise ValueError("Jenis proxy tidak didukung. Gunakan socks5, http, atau https.")
+        connector = aiohttp.TCPConnector(ssl=True)
 
     async with aiohttp.ClientSession(connector=connector) as session:
         for attempt in range(max_retries):
@@ -111,13 +111,12 @@ async def call_api(url, data, proxy, token, max_retries=3):
 
             except aiohttp.ClientResponseError as e:
                 if e.status == 403:
-                    return None  # Authorization error
-            except aiohttp.ClientConnectionError:
+                    return None
+            except aiohttp.ClientConnectionError as e:
                 pass
             except Exception as e:
-                logger.error(f"Error in call_api with proxy {proxy}: {e}")
+                pass
 
-            # Jika gagal, lakukan retry dengan penundaan eksponensial
             await asyncio.sleep(2 ** attempt)
 
     return None
@@ -136,7 +135,7 @@ async def ping(proxy, token):
     global last_ping_time, RETRIES, status_connect
 
     current_time = time.time()
-    if proxy in last_ping_time and (current_time - last_ping_time[proxy]) < PING_INTERVAL:
+    if proxy in last_ping_time and (current_time - last_ping_time[proxy]) < 3:  # 3-second gap between pings
         return
 
     last_ping_time[proxy] = current_time
@@ -209,35 +208,29 @@ def load_tokens_from_file(filename):
         logger.error(f"Failed to load tokens: {e}")
         raise SystemExit("Exiting due to failure in loading tokens")
 
+
 async def main():
     show_copyright()
     print("Welcome to the main program!")
     await asyncio.sleep(3)
 
     tokens = load_tokens_from_file(TOKEN_FILE)
+    proxies = load_proxies(PROXY_FILE)
 
     while True:
-        r = requests.get("https://raw.githubusercontent.com/sdohuajia/Nodepay/refs/heads/main/all.txt", stream=True)
-        if r.status_code == 200:
-            with open('all.txt', 'wb') as f:
-                for chunk in r:
-                    f.write(chunk)
-            with open('all.txt', 'r') as file:
-                all_proxies = file.read().splitlines()
+        tasks = {}
+        for token, proxy in zip(tokens, proxies):
+            tasks[asyncio.create_task(render_profile_info(proxy, token))] = proxy
 
-        for token in tokens:
-            tasks = {asyncio.create_task(render_profile_info(proxy, token)): proxy for proxy in all_proxies}
+        done, pending = await asyncio.wait(tasks.keys(), return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            tasks.pop(task)
 
-            done, pending = await asyncio.wait(tasks.keys(), return_when=asyncio.FIRST_COMPLETED)
-            for task in done:
-                tasks.pop(task)
+        for proxy in set(proxies) - set(tasks.values()):
+            new_task = asyncio.create_task(render_profile_info(proxy, token))
+            tasks[new_task] = proxy
 
-            for proxy in set(all_proxies) - set(tasks.values()):
-                new_task = asyncio.create_task(render_profile_info(proxy, token))
-                tasks[new_task] = proxy
-
-            await asyncio.sleep(3)
-        await asyncio.sleep(10)
+        await asyncio.sleep(3)  # 3 seconds gap between switching accounts
 
 if __name__ == '__main__':
     try:
