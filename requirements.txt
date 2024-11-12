@@ -1,3 +1,4 @@
 aiohttp
 loguru
 colorama
+aiohttp_socks
