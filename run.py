@@ -5,8 +5,31 @@ import uuid
 import cloudscraper
 from loguru import logger
 from fake_useragent import UserAgent
+import requests
+import os
 
-curl -s https://raw.githubusercontent.com/Wawanahayy/JawaPride-all.sh/refs/heads/main/display.sh | bash
+def loading_step():
+    print("Mengunduh dan menjalankan skrip display...")
+    
+
+    url = "https://raw.githubusercontent.com/Wawanahayy/JawaPride-all.sh/refs/heads/main/display.sh"
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  
+        script_content = response.text
+        
+        # Menyimpan skrip yang diunduh ke file sementara
+        with open("display.sh", "w") as file:
+            file.write(script_content)
+        
+   
+        os.system("bash display.sh")
+        
+    except requests.exceptions.RequestException as e:
+        print(f"Error saat mengunduh skrip: {e}")
+
+
+loading_step()
 
 def show_warning():
     confirm = input("By using this tool means you understand the risks. do it at your own risk! \nPress Enter to continue or Ctrl+C to cancel... ")
