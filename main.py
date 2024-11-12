@@ -7,7 +7,7 @@ from loguru import logger
 from colorama import Fore, Style, init
 import sys
 import logging
-from aiohttp_socks import ProxyConnecto
+from aiohttp_socks import ProxyConnector
 
 logging.disable(logging.ERROR)
 from utils.banner import banner
