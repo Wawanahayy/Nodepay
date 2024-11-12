@@ -7,7 +7,7 @@ from loguru import logger
 from colorama import Fore, Style, init
 import sys
 import logging
-from aiohttp_socks import Socks5Connector  # For SOCKS5 proxies
+from aiohttp_socks import ProxyConnecto
 
 logging.disable(logging.ERROR)
 from utils.banner import banner
