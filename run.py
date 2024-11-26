@@ -43,9 +43,17 @@ def show_warning():
 PING_INTERVAL = 60
 RETRIES = 60
 
-DOMAIN_API = {
-    "SESSION": "http://18.136.143.169/api/auth/session",
-    "PING": "http://54.255.192.166/api/network/ping"
+DOMAIN_API_ENDPOINTS = {
+    "SESSION": [
+        "http://api.nodepay.ai/api/auth/session"
+    ],
+    "PING": [
+        "http://13.215.134.222/api/network/ping",
+        "http://18.139.20.49/api/network/ping",
+        "http://52.74.35.173/api/network/ping",
+        "http://52.77.10.116/api/network/ping",
+        "http://3.1.154.253/api/network/ping"
+    ]
 }
 
 CONNECTION_STATES = {
