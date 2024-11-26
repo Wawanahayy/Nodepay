@@ -170,8 +170,9 @@ async def ping(proxy, token):
 
     current_time = time.time()
 
+    # Pastikan waktu tunggu antar ping terpenuhi
     if proxy in last_ping_time and (current_time - last_ping_time[proxy]) < PING_INTERVAL:
-        logger.info(f"Skipping ping for proxy { proxy}, not enough time elapsed")
+        logger.info(f"Skipping ping for proxy {proxy}, not enough time elapsed")
         return
 
     last_ping_time[proxy] = current_time
@@ -183,13 +184,28 @@ async def ping(proxy, token):
             "timestamp": int(time.time())
         }
 
-        response = await call_api(DOMAIN_API["PING"], data, proxy, token)
-        if response["code"] == 0:
-            logger.info(f"Ping successful via proxy {proxy}: {response}")
-            RETRIES = 0
-            status_connect = CONNECTION_STATES["CONNECTED"]
+        for url in DOMAIN_API_ENDPOINTS["PING"]:
+            try:
+                # Mencoba URL saat ini
+                logger.info(f"Trying ping to {url} via proxy {proxy}")
+                response = await call_api(url, data, proxy, token)
+
+                # Jika berhasil, catat log dan keluar dari loop
+                if response["code"] == 0:
+                    logger.info(f"Ping successful via {url} using proxy {proxy}: {response}")
+                    RETRIES = 0
+                    status_connect = CONNECTION_STATES["CONNECTED"]
+                    break  # Hentikan iterasi jika URL berhasil
+                else:
+                    logger.warning(f"Ping failed via {url}: {response}")
+
+            except Exception as e:
+                logger.error(f"Error pinging {url} via proxy {proxy}: {e}")
+
         else:
-            handle_ping_fail(proxy, response)
+            # Jika semua URL gagal
+            handle_ping_fail(proxy, None)
+
     except Exception as e:
         logger.error(f"Ping failed via proxy {proxy}: {e}")
         handle_ping_fail(proxy, None)
