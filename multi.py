@@ -100,14 +100,15 @@ async def start_ping(proxy, token):
 async def call_api(url, data, proxy, token):
     user_agent = UserAgent(os=['windows', 'macos', 'linux'], browsers='chrome')
     random_user_agent = user_agent.random
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "User-Agent": random_user_agent,
-        "Accept": "application/json",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Referer": "https://app.nodepay.ai",
-    }
+headers = {
+    "Authorization": f"Bearer {token.strip()}",  # Strip any unwanted whitespace or newline
+    "Content-Type": "application/json",
+    "User-Agent": random_user_agent,
+    "Accept": "application/json",
+    "Accept-Language": "en-US,en;q=0.5",
+    "Referer": "https://app.nodepay.ai",
+}
+
 
     try:
         # Mengonfigurasi proxy SOCKS5
