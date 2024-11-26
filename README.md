@@ -36,7 +36,7 @@ pip install -r requirements.txt
 ```
 ## 3. Run The Script
 ```bash
-python3 main.py
+python3 run.py
 ```
 ## Expected Output
 If running correctly, you will see logs like the following:
