@@ -27,7 +27,7 @@ This script is intended for running on a server using multyple proxy.
 ## 1. Steps to Run the Code
 ```bash
 git clone https://github.com/Wawanahayy/Nodepay
-cd nodepay
+cd Nodepay
 ```
 
 ## 2. Install Dependencies
