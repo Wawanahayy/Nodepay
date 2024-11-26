@@ -43,10 +43,8 @@ def show_warning():
 PING_INTERVAL = 60
 RETRIES = 60
 
-DOMAIN_API_ENDPOINTS = {
-    "SESSION": [
-        "http://api.nodepay.ai/api/auth/session"
-    ],
+DOMAIN_API = {
+    "SESSION": "http://api.nodepay.ai/api/auth/session",
     "PING": [
         "http://13.215.134.222/api/network/ping",
         "http://18.139.20.49/api/network/ping",
@@ -55,6 +53,30 @@ DOMAIN_API_ENDPOINTS = {
         "http://3.1.154.253/api/network/ping"
     ]
 }
+
+async def render_profile_info(proxy, token):
+    global browser_id, account_info
+
+    try:
+        np_session_info = load_session_info(proxy)
+
+        if not np_session_info:
+            # Generate new browser_id
+            browser_id = uuidv4()
+            response = await call_api(DOMAIN_API["SESSION"], {}, proxy, token)
+            valid_resp(response)
+            account_info = response["data"]
+            if account_info.get("uid"):
+                save_session_info(proxy, account_info)
+                await start_ping(proxy, token)
+            else:
+                handle_logout(proxy)
+        else:
+            account_info = np_session_info
+            await start_ping(proxy, token)
+    except Exception as e:
+        logger.error(f"Error in render_profile_info for proxy {proxy}: {e}")
+
 
 CONNECTION_STATES = {
     "CONNECTED": 1,
