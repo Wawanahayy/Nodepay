@@ -184,7 +184,8 @@ async def ping(proxy, token):
             "timestamp": int(time.time())
         }
 
-    for url in DOMAIN_API["PING"]:
+for url in DOMAIN_API["PING"]:
+
             try:
                 # Mencoba URL saat ini
                 logger.info(f"Trying ping to {url} via proxy {proxy}")
