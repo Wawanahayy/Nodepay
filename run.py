@@ -184,8 +184,7 @@ async def ping(proxy, token):
             "timestamp": int(time.time())
         }
 
-for url in DOMAIN_API["PING"]:
-
+        for url in DOMAIN_API["PING"]:
             try:
                 # Mencoba URL saat ini
                 logger.info(f"Trying ping to {url} via proxy {proxy}")
@@ -210,6 +209,7 @@ for url in DOMAIN_API["PING"]:
     except Exception as e:
         logger.error(f"Ping failed via proxy {proxy}: {e}")
         handle_ping_fail(proxy, None)
+
 
 def handle_ping_fail(proxy, response):
     global RETRIES, status_connect
