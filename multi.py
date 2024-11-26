@@ -5,6 +5,7 @@ from loguru import logger
 from fake_useragent import UserAgent
 import cloudscraper
 import os
+import json
 
 # Constants
 PING_INTERVAL = 60
@@ -34,42 +35,14 @@ def load_token(token_file):
         logger.error(f"Failed to load token: {e}")
         raise SystemExit("Exiting due to failure in loading token")
 
-# Proses untuk menjalankan akun secara bersamaan
-async def render_profile_info(proxy, token, delay=0):
-    # Fungsi untuk menangani pemrosesan akun
+# Fungsi untuk menyimpan sesi
+def save_session_info(proxy, data):
+    session_file = f"session_{proxy}.json"  # File sesi berdasarkan proxy
     try:
-        if delay:
-            await asyncio.sleep(delay)  # Menambahkan delay sebelum memulai
-        np_session_info = load_session_info(proxy)
-
-        if not np_session_info:
-            # Generate new browser_id
-            browser_id = uuid.uuid4()
-            response = await call_api(DOMAIN_API["SESSION"], {}, proxy, token)
-            valid_resp(response)
-            account_info = response["data"]
-            if account_info.get("uid"):
-                save_session_info(proxy, account_info)
-                await start_ping(proxy, token)
-            else:
-                handle_logout(proxy)
-        else:
-            account_info = np_session_info
-            await start_ping(proxy, token)
-
+        with open(session_file, 'w') as file:
+            json.dump(data, file, indent=4)  # Menyimpan data sesi dalam format JSON
     except Exception as e:
-        logger.error(f"Error in render_profile_info for proxy {proxy}: {e}")
-
-# Fungsi untuk melakukan ping secara berkelanjutan
-async def start_ping(proxy, token):
-    try:
-        while True:
-            await ping(proxy, token)
-            await asyncio.sleep(PING_INTERVAL)
-    except asyncio.CancelledError:
-        logger.info(f"Ping task for proxy {proxy} was cancelled")
-    except Exception as e:
-        logger.error(f"Error in start_ping for proxy {proxy}: {e}")
+        logger.error(f"Failed to save session data for proxy {proxy}: {e}")
 
 # Fungsi untuk memanggil API
 async def call_api(url, data, proxy, token):
@@ -93,17 +66,7 @@ async def call_api(url, data, proxy, token):
         logger.error(f"Error during API call: {e}")
         raise ValueError(f"Failed API call to {url}")
 
-# Fungsi untuk memuat proxy dari file
-def load_proxies(proxy_file):
-    try:
-        with open(proxy_file, 'r') as file:
-            proxies = file.read().splitlines()
-        return proxies
-    except Exception as e:
-        logger.error(f"Failed to load proxies: {e}")
-        raise SystemExit("Exiting due to failure in loading proxies")
-
-# Fungsi untuk validasi respons dari API
+# Fungsi untuk memvalidasi respons dari API
 def valid_resp(resp):
     if not resp or "code" not in resp or resp["code"] < 0:
         raise ValueError("Invalid response")
@@ -112,10 +75,6 @@ def valid_resp(resp):
 # Fungsi untuk menangani login/logout
 def handle_logout(proxy):
     logger.info(f"Logged out and cleared session info for proxy {proxy}")
-
-# Fungsi untuk menyimpan sesi
-def save_session_info(proxy, data):
-    pass
 
 # Fungsi utama untuk menjalankan akun secara bersamaan
 async def main():
