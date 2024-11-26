@@ -1,6 +1,7 @@
 import asyncio
 import time
 import uuid
+import json  # Importing json module
 from loguru import logger
 from fake_useragent import UserAgent
 import cloudscraper
@@ -60,6 +61,29 @@ async def render_profile_info(proxy, token, delay=0):
 
     except Exception as e:
         logger.error(f"Error in render_profile_info for proxy {proxy}: {e}")
+
+# Fungsi untuk memuat informasi sesi
+def load_session_info(proxy):
+    try:
+        session_file = f"session_{proxy.replace(':', '_').replace('/', '_')}.json"  # File untuk setiap proxy
+        if os.path.exists(session_file):
+            with open(session_file, 'r') as file:
+                session_data = json.load(file)
+            return session_data
+        return None  # Jika tidak ada informasi sesi
+    except Exception as e:
+        logger.error(f"Failed to load session info for proxy {proxy}: {e}")
+        return None
+
+# Fungsi untuk menyimpan sesi
+def save_session_info(proxy, data):
+    try:
+        session_file = f"session_{proxy.replace(':', '_').replace('/', '_')}.json"
+        with open(session_file, 'w') as file:
+            json.dump(data, file, indent=4)  # Simpan session info dalam format JSON
+        logger.info(f"Session info saved for proxy {proxy}")
+    except Exception as e:
+        logger.error(f"Failed to save session info for proxy {proxy}: {e}")
 
 # Fungsi untuk melakukan ping secara berkelanjutan
 async def start_ping(proxy, token):
@@ -125,10 +149,6 @@ def valid_resp(resp):
 # Fungsi untuk menangani login/logout
 def handle_logout(proxy):
     logger.info(f"Logged out and cleared session info for proxy {proxy}")
-
-# Fungsi untuk menyimpan sesi
-def save_session_info(proxy, data):
-    pass
 
 # Fungsi utama untuk menjalankan akun secara bersamaan
 async def main():
