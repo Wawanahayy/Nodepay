@@ -113,15 +113,16 @@ async def call_api(url, data, proxy, token):
         # Mengonfigurasi proxy SOCKS5
         proxy_url = f"socks5://{proxy}"
 
-        # Menggunakan requests dengan proxy SOCKS5
-        session = requests.Session()
-        session.proxies = {
+        # Menggunakan cloudscraper tanpa memberikan session
+        scraper = cloudscraper.create_scraper()
+
+        # Menetapkan proxy untuk scraper
+        scraper.proxies = {
             'http': proxy_url,
             'https': proxy_url
         }
 
-        # Membuat scraper dengan session yang sudah terkonfigurasi
-        scraper = cloudscraper.create_scraper(session=session)
+        # Melakukan request ke API
         response = scraper.post(url, json=data, headers=headers, timeout=30)
         response.raise_for_status()
         return valid_resp(response.json())
@@ -129,6 +130,7 @@ async def call_api(url, data, proxy, token):
     except Exception as e:
         logger.error(f"Error during API call: {e}")
         raise ValueError(f"Failed API call to {url}")
+
 
 # Fungsi untuk memuat proxy dari file
 def load_proxies(proxy_file):
